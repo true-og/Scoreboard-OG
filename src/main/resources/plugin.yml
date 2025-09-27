@@ -8,3 +8,6 @@ main: plugin.ScoreboardOG
 depend: 
   - DiamondBank-OG
   - Utilities-OG
+  - LuckPerms
+softdepend:
+  - PlaceholderAPI

@@ -47,7 +47,7 @@ repositories {
     mavenCentral() // Import the Maven Central Maven Repository.
     gradlePluginPortal() // Import the Gradle Plugin Portal Maven Repository.
     maven { url = uri("https://repo.purpurmc.org/snapshots") } // Import the PurpurMC Maven Repository.
-    maven("https://catcoder.pl.ua/snapshots") // Import the ProtocolSidebar repo.
+    maven { url = uri("https://repo.hotten.cloud/snapshots") } // Import the ScoreboardLib library.
     maven { url = uri("file://${System.getProperty("user.home")}/.m2/repository") }
     System.getProperty("SELF_MAVEN_LOCAL_REPO")?.let { // TrueOG Bootstrap mavenLocal().
         val dir = file(it)
@@ -65,11 +65,12 @@ repositories {
 dependencies {
     compileOnly("org.purpurmc.purpur:purpur-api:1.19.4-R0.1-SNAPSHOT") // Declare Purpur API version to be packaged.
     compileOnly("io.github.miniplaceholders:miniplaceholders-api:2.2.3") // Import MiniPlaceholders API.
+    compileOnly("net.luckperms:api:5.5") // Import LuckPerms API.
     compileOnlyApi(project(":libs:Utilities-OG")) // Import TrueOG Network Utilities-OG Java API (from source).
     compileOnlyApi(project(":libs:DiamondBank-OG")) {
         attributes { attribute(kotlinAttribute, true) }
     } // Import TrueOG network DiamondBank-OG Kotlin API (from source).
-    implementation(files("libs/ProtocolSidebar/ProtocolSidebar-1.19.4.jar")) // Import legacy ProtocolSidebar API.
+    implementation("me.tigerhix.lib:scoreboard:1.0.1-SNAPSHOT")
 }
 
 apply(from = "eclipse.gradle.kts") // Import eclipse classpath support script.
