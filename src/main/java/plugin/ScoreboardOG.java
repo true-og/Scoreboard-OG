@@ -2,7 +2,9 @@
 // Author: NotAlexNoyle.
 package plugin;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -12,12 +14,13 @@ import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.RegisteredServiceProvider;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.bukkit.scheduler.BukkitTask;
 
-import me.tigerhix.lib.scoreboard.ScoreboardLib;
-import me.tigerhix.lib.scoreboard.common.EntryBuilder;
-import me.tigerhix.lib.scoreboard.type.Entry;
-import me.tigerhix.lib.scoreboard.type.Scoreboard;
-import me.tigerhix.lib.scoreboard.type.ScoreboardHandler;
+import net.megavex.scoreboardlibrary.api.ScoreboardLibrary;
+import net.megavex.scoreboardlibrary.api.sidebar.Sidebar;
+import net.megavex.scoreboardlibrary.api.sidebar.SidebarManager;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import net.luckperms.api.LuckPerms;
 import net.luckperms.api.cacheddata.CachedMetaData;
 import net.luckperms.api.model.user.User;
@@ -28,9 +31,17 @@ public class ScoreboardOG extends JavaPlugin {
     private static ScoreboardOG instance;
 
     private FileConfiguration config;
-    private final Map<UUID, Scoreboard> boards = new HashMap<>();
+    private final Map<UUID, Sidebar> boards = new HashMap<>();
+
+    private final Map<UUID, BukkitTask> updateTasks = new HashMap<>();
+
+    private ScoreboardLibrary scoreboardLibrary;
+
+    private SidebarManager sidebarManager;
 
     private LuckPerms luckPerms;
+
+    private final LegacyComponentSerializer legacySerializer = LegacyComponentSerializer.legacyAmpersand();
 
     public static ScoreboardOG getInstance() {
 
@@ -50,7 +61,9 @@ public class ScoreboardOG extends JavaPlugin {
 
         saveDefaultConfig();
         this.config = getConfig();
-        ScoreboardLib.setPluginInstance(this);
+
+        scoreboardLibrary = ScoreboardLibrary.loadNative(this);
+        sidebarManager = scoreboardLibrary.createSidebarManager();
 
         // Hook LuckPerms API.
         final RegisteredServiceProvider<LuckPerms> provider = Bukkit.getServicesManager()
@@ -73,8 +86,23 @@ public class ScoreboardOG extends JavaPlugin {
     @Override
     public void onDisable() {
 
-        boards.values().forEach(Scoreboard::deactivate);
+        boards.values().forEach(Sidebar::close);
         boards.clear();
+
+        updateTasks.values().forEach(BukkitTask::cancel);
+        updateTasks.clear();
+
+        if (sidebarManager != null) {
+
+            sidebarManager.close();
+
+        }
+
+        if (scoreboardLibrary != null) {
+
+            scoreboardLibrary.close();
+
+        }
 
     }
 
@@ -86,52 +114,85 @@ public class ScoreboardOG extends JavaPlugin {
 
     public void openBoard(Player player) {
 
-        final Scoreboard board = ScoreboardLib.createScoreboard(player).setHandler(new ScoreboardHandler() {
-
-            @Override
-            public String getTitle(Player p) {
-
-                return "&4♥ &a&lTrue&c&lOG&r&e Network &4♥";
-
-            }
-
-            @Override
-            public java.util.List<Entry> getEntries(Player p) {
-
-                // Fetch LuckPerms prefix with formatting.
-                String lpPrefix = getLuckPermsPrefixLegacy(p);
-                lpPrefix = stripLeadingReset(stripTrailingReset(lpPrefix));
-
-                // Bleed formatting from prefix into name.
-                final String youTail = joinSpace(lpPrefix, p.getName());
-                final String youLine = "&aYou:&r " + youTail + "&r";
-
-                // Independently formatted Union tag.
-                final String unionTag = expandMM(p, "<placeholderapi_player:%simpleclans_clan_color_tag%>");
-                final String unionLine = "&cUnion: &r" + unionTag + "&r";
-
-                return new EntryBuilder().next("&c&m----&6&m----&e&m----&2&m----&9&m----&5&m----").next(youLine).blank()
-                        .next("&bDiamonds: " + expandMM(p, "<diamondbankog_balance>")).blank().next(unionLine).blank()
-                        .next("&2Kills: " + expandMM(p, "<placeholderapi_player:%statistic_player_kills%>")).blank()
-                        .next("&4Deaths: " + expandMM(p, "<placeholderapi_player:%statistic_deaths%>")).blank()
-                        .next("&4&m--&0&m--&4> &etrue-og.net &4<&0&m--&4&m--").build();
-
-            }
-
-        }).setUpdateInterval(10L);
-        board.activate();
+        final Sidebar board = sidebarManager.createSidebar();
+        board.title(deserialize("&4♥ &a&lTrue&c&lOG&r&e Network &4♥"));
+        board.lines(buildSidebarLines(player));
+        board.addViewer(player);
         boards.put(player.getUniqueId(), board);
+
+        final BukkitTask task = Bukkit.getScheduler().runTaskTimer(this, () -> {
+
+            if (!player.isOnline()) {
+
+                closeBoard(player);
+                return;
+
+            }
+
+            board.lines(buildSidebarLines(player));
+
+        }, 10L, 10L);
+
+        updateTasks.put(player.getUniqueId(), task);
 
     }
 
     public void closeBoard(Player player) {
 
-        final Scoreboard board = boards.remove(player.getUniqueId());
-        if (board != null) {
+        final Sidebar board = boards.remove(player.getUniqueId());
+        final BukkitTask task = updateTasks.remove(player.getUniqueId());
 
-            board.deactivate();
+        if (task != null) {
+
+            task.cancel();
 
         }
+
+        if (board != null) {
+
+            board.removeViewer(player);
+            board.close();
+
+        }
+
+    }
+
+    private List<Component> buildSidebarLines(Player player) {
+
+        final List<Component> lines = new ArrayList<>();
+
+        // Fetch LuckPerms prefix with formatting.
+        String lpPrefix = getLuckPermsPrefixLegacy(player);
+        lpPrefix = stripLeadingReset(stripTrailingReset(lpPrefix));
+
+        // Bleed formatting from prefix into name.
+        final String youTail = joinSpace(lpPrefix, player.getName());
+        final String youLine = "&aYou:&r " + youTail + "&r";
+
+        // Independently formatted Union tag.
+        final String unionTag = expandMM(player, "<placeholderapi_player:%simpleclans_clan_color_tag%>");
+        final String unionLine = "&cUnion: &r" + unionTag + "&r";
+
+        lines.add(deserialize("&c&m----&6&m----&e&m----&2&m----&9&m----&5&m----"));
+        lines.add(deserialize(youLine));
+        lines.add(deserialize(""));
+        lines.add(deserialize("&bDiamonds: " + expandMM(player, "<diamondbankog_balance>")));
+        lines.add(deserialize(""));
+        lines.add(deserialize(unionLine));
+        lines.add(deserialize(""));
+        lines.add(deserialize("&2Kills: " + expandMM(player, "<placeholderapi_player:%statistic_player_kills%>")));
+        lines.add(deserialize(""));
+        lines.add(deserialize("&4Deaths: " + expandMM(player, "<placeholderapi_player:%statistic_deaths%>")));
+        lines.add(deserialize(""));
+        lines.add(deserialize("&4&m--&0&m--&4> &etrue-og.net &4<&0&m--&4&m--"));
+
+        return lines;
+
+    }
+
+    private Component deserialize(String text) {
+
+        return legacySerializer.deserialize(text);
 
     }
 
