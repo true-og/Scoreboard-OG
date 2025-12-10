@@ -34,6 +34,8 @@ version = "1.0" // Declare plugin version (will be in .jar).
 
 val apiVersion = "1.19" // Declare minecraft server target version.
 
+val scoreboardLibraryVersion = "2.1.0" // Declare Scoreboard Library version.
+
 /* ----------------------------- Resources ----------------------------- */
 tasks.named<ProcessResources>("processResources") {
     val props = mapOf("version" to version, "apiVersion" to apiVersion)
@@ -71,7 +73,12 @@ dependencies {
     compileOnlyApi(project(":libs:DiamondBank-OG")) {
         attributes { attribute(kotlinAttribute, true) }
     } // Import TrueOG network DiamondBank-OG Kotlin API (from source).
-    implementation("com.github.MegavexNetwork:scoreboard-library:2.1.0")
+    implementation("net.megavex:scoreboard-library-api:$scoreboardLibraryVersion")
+    runtimeOnly("net.megavex:scoreboard-library-implementation:$scoreboardLibraryVersion")
+    runtimeOnly("net.megavex:scoreboard-library-modern:$scoreboardLibraryVersion")
+    runtimeOnly("net.megavex:scoreboard-library-packetevents:$scoreboardLibraryVersion")
+    runtimeOnly("net.megavex:scoreboard-library-legacy:$scoreboardLibraryVersion")
+    implementation("net.kyori:adventure-platform-bukkit:4.3.4")
 }
 
 apply(from = "eclipse.gradle.kts") // Import eclipse classpath support script.
