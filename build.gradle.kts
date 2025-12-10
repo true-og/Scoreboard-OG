@@ -48,6 +48,7 @@ repositories {
     gradlePluginPortal() // Import the Gradle Plugin Portal Maven Repository.
     maven { url = uri("https://repo.purpurmc.org/snapshots") } // Import the PurpurMC Maven Repository.
     maven { url = uri("https://repo.hotten.cloud/snapshots") } // Import the ScoreboardLib library.
+    maven { url = uri("https://jitpack.io") } // Import the MegavexNetwork scoreboard-library.
     maven { url = uri("file://${System.getProperty("user.home")}/.m2/repository") }
     System.getProperty("SELF_MAVEN_LOCAL_REPO")?.let { // TrueOG Bootstrap mavenLocal().
         val dir = file(it)
@@ -70,7 +71,7 @@ dependencies {
     compileOnlyApi(project(":libs:DiamondBank-OG")) {
         attributes { attribute(kotlinAttribute, true) }
     } // Import TrueOG network DiamondBank-OG Kotlin API (from source).
-    implementation("me.tigerhix.lib:scoreboard:1.0.1-SNAPSHOT")
+    implementation("com.github.MegavexNetwork:scoreboard-library:2.1.0")
 }
 
 apply(from = "eclipse.gradle.kts") // Import eclipse classpath support script.
