@@ -34,8 +34,7 @@ public class ScoreboardOG extends JavaPlugin {
     private static ScoreboardOG instance;
 
     private FileConfiguration config;
-    private final Map<UUID, Sidebar> boards = new HashMap<>();
-    private final Map<UUID, SidebarLayoutContext> sidebarLayouts = new HashMap<>();
+    private final Map<UUID, PlayerSidebar> boards = new HashMap<>();
     private final Map<UUID, BukkitTask> updateTasks = new HashMap<>();
 
     private ScoreboardLibrary scoreboardLibrary;
@@ -89,7 +88,7 @@ public class ScoreboardOG extends JavaPlugin {
     @Override
     public void onDisable() {
 
-        boards.values().forEach(Sidebar::close);
+        boards.values().forEach(PlayerSidebar::close);
         boards.clear();
 
         updateTasks.values().forEach(BukkitTask::cancel);
@@ -117,15 +116,12 @@ public class ScoreboardOG extends JavaPlugin {
 
     public void openBoard(Player player) {
 
-        final Sidebar board = sidebarManager.createSidebar();
-        final SidebarLayoutContext layoutContext = createSidebarLayout(player);
+        final PlayerSidebar playerSidebar = createSidebar(player);
 
-        layoutContext.componentLayout().apply(board);
-        board.addViewer(player);
+        playerSidebar.apply();
 
         final UUID uuid = player.getUniqueId();
-        boards.put(uuid, board);
-        sidebarLayouts.put(uuid, layoutContext);
+        boards.put(uuid, playerSidebar);
 
         final BukkitTask task = Bukkit.getScheduler().runTaskTimer(this, () -> {
 
@@ -136,8 +132,7 @@ public class ScoreboardOG extends JavaPlugin {
 
             }
 
-            layoutContext.titleAnimation().nextFrame();
-            layoutContext.componentLayout().apply(board);
+            playerSidebar.tick();
 
         }, 10L, 10L);
 
@@ -147,8 +142,7 @@ public class ScoreboardOG extends JavaPlugin {
 
     public void closeBoard(Player player) {
 
-        final Sidebar board = boards.remove(player.getUniqueId());
-        sidebarLayouts.remove(player.getUniqueId());
+        final PlayerSidebar board = boards.remove(player.getUniqueId());
         final BukkitTask task = updateTasks.remove(player.getUniqueId());
 
         if (task != null) {
@@ -159,14 +153,13 @@ public class ScoreboardOG extends JavaPlugin {
 
         if (board != null) {
 
-            board.removeViewer(player);
             board.close();
 
         }
 
     }
 
-    private SidebarLayoutContext createSidebarLayout(Player player) {
+    private PlayerSidebar createSidebar(Player player) {
 
         final SidebarAnimation<Component> titleAnimation = createTitleAnimation();
         final SidebarComponent titleComponent = SidebarComponent.animatedLine(titleAnimation);
@@ -188,7 +181,8 @@ public class ScoreboardOG extends JavaPlugin {
                 .addStaticLine(deserialize("&4&m--&0&m--&4> &etrue-og.net &4<&0&m--&4&m--"))
                 .build();
 
-        return new SidebarLayoutContext(new ComponentSidebarLayout(titleComponent, lines), titleAnimation);
+        return new PlayerSidebar(player, sidebarManager.createSidebar(), new ComponentSidebarLayout(titleComponent, lines),
+                titleAnimation);
 
     }
 
@@ -325,7 +319,44 @@ public class ScoreboardOG extends JavaPlugin {
 
     }
 
-    private record SidebarLayoutContext(ComponentSidebarLayout componentLayout,
-            SidebarAnimation<Component> titleAnimation) {}
+    private static final class PlayerSidebar {
+
+        private final Player viewer;
+        private final Sidebar sidebar;
+        private final ComponentSidebarLayout componentSidebar;
+        private final SidebarAnimation<Component> titleAnimation;
+
+        private PlayerSidebar(Player viewer, Sidebar sidebar, ComponentSidebarLayout componentSidebar,
+                SidebarAnimation<Component> titleAnimation) {
+
+            this.viewer = viewer;
+            this.sidebar = sidebar;
+            this.componentSidebar = componentSidebar;
+            this.titleAnimation = titleAnimation;
+
+        }
+
+        private void apply() {
+
+            componentSidebar.apply(sidebar);
+            sidebar.addViewer(viewer);
+
+        }
+
+        private void tick() {
+
+            titleAnimation.nextFrame();
+            componentSidebar.apply(sidebar);
+
+        }
+
+        private void close() {
+
+            sidebar.removeViewer(viewer);
+            sidebar.close();
+
+        }
+
+    }
 
 }
