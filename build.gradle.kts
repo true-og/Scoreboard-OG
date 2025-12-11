@@ -99,7 +99,14 @@ tasks.shadowJar {
     archiveClassifier.set("") // Use empty string instead of null.
     isEnableRelocation = true
     relocationPrefix = "${project.group}.shadow"
-    minimize()
+    minimize {
+        // Keep the entire scoreboard library stack so ServiceLoader can find
+        // the PacketEvents adapter at runtime (PacketEvents-OG on 1.8+).
+        exclude(dependency("net.megavex:scoreboard-library-api:.*"))
+        exclude(dependency("net.megavex:scoreboard-library-extra-kotlin:.*"))
+        exclude(dependency("net.megavex:scoreboard-library-implementation:.*"))
+        exclude(dependency("net.megavex:scoreboard-library-packetevents:.*"))
+    }
 }
 
 tasks.jar { archiveClassifier.set("part") } // Applies to root jarfile only.
