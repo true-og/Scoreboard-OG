@@ -1,6 +1,6 @@
 # Scoreboard-OG
 
-TrueOG Network's custom Scoreboard plugin supporting dynamic MiniPlaceholders. Based on the [ScoreboardLib](https://github.com/TigerHix/ScoreboardLib) API by TigerHix.
+TrueOG Network's custom Scoreboard plugin supporting dynamic MiniPlaceholders. Based on the [scoreboard-library](https://github.com/true-og/scoreboard-library) API by [MegavexNetwork](https://github.com/MegavexNetwork/scoreboard-library).
 
 Gradle Version: 8.14.3
 

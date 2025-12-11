@@ -34,7 +34,7 @@ version = "1.0" // Declare plugin version (will be in .jar).
 
 val apiVersion = "1.19" // Declare minecraft server target version.
 
-val scoreboardLibraryVersion = "2.4.3"
+val scoreboardLibraryVersion = "2.4.4"
 
 /* ----------------------------- Resources ----------------------------- */
 tasks.named<ProcessResources>("processResources") {
