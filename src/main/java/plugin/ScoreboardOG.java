@@ -6,6 +6,16 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
+import net.luckperms.api.LuckPerms;
+import net.luckperms.api.cacheddata.CachedMetaData;
+import net.luckperms.api.model.user.User;
+import net.megavex.scoreboardlibrary.api.ScoreboardLibrary;
+import net.megavex.scoreboardlibrary.api.sidebar.Sidebar;
+import net.megavex.scoreboardlibrary.api.sidebar.component.ComponentSidebarLayout;
+import net.megavex.scoreboardlibrary.api.sidebar.component.SidebarComponent;
+import net.trueog.utilitiesog.UtilitiesOG;
 import org.apache.commons.lang3.StringUtils;
 import org.bukkit.Bukkit;
 import org.bukkit.configuration.file.FileConfiguration;
@@ -13,24 +23,18 @@ import org.bukkit.entity.Player;
 import org.bukkit.plugin.RegisteredServiceProvider;
 import org.bukkit.plugin.java.JavaPlugin;
 
-import me.tigerhix.lib.scoreboard.ScoreboardLib;
-import me.tigerhix.lib.scoreboard.common.EntryBuilder;
-import me.tigerhix.lib.scoreboard.type.Entry;
-import me.tigerhix.lib.scoreboard.type.Scoreboard;
-import me.tigerhix.lib.scoreboard.type.ScoreboardHandler;
-import net.luckperms.api.LuckPerms;
-import net.luckperms.api.cacheddata.CachedMetaData;
-import net.luckperms.api.model.user.User;
-import net.trueog.utilitiesog.UtilitiesOG;
-
 public class ScoreboardOG extends JavaPlugin {
+
+    private static final LegacyComponentSerializer LEGACY_SERIALIZER = LegacyComponentSerializer.legacyAmpersand();
 
     private static ScoreboardOG instance;
 
     private FileConfiguration config;
-    private final Map<UUID, Scoreboard> boards = new HashMap<>();
+    private final Map<UUID, PlayerSidebar> sidebars = new HashMap<>();
 
     private LuckPerms luckPerms;
+    private ScoreboardLibrary scoreboardLibrary;
+    private int updateTaskId = -1;
 
     public static ScoreboardOG getInstance() {
 
@@ -50,7 +54,17 @@ public class ScoreboardOG extends JavaPlugin {
 
         saveDefaultConfig();
         this.config = getConfig();
-        ScoreboardLib.setPluginInstance(this);
+
+        try {
+
+            this.scoreboardLibrary = ScoreboardLibrary.loadScoreboardLibrary(this);
+
+        } catch (Exception e) {
+
+            this.scoreboardLibrary = null;
+            getLogger().warning("No scoreboard packet adapter available, disabling scoreboards.");
+
+        }
 
         // Hook LuckPerms API.
         final RegisteredServiceProvider<LuckPerms> provider = Bukkit.getServicesManager()
@@ -68,13 +82,41 @@ public class ScoreboardOG extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new Listeners(), this);
         Bukkit.getOnlinePlayers().forEach(this::openBoard);
 
+        this.updateTaskId = Bukkit.getScheduler().scheduleSyncRepeatingTask(this, () -> {
+
+            for (Player online : Bukkit.getOnlinePlayers()) {
+
+                PlayerSidebar sidebar = sidebars.get(online.getUniqueId());
+                if (sidebar != null) {
+
+                    sidebar.tick();
+
+                }
+
+            }
+
+        }, 0L, 10L);
+
     }
 
     @Override
     public void onDisable() {
 
-        boards.values().forEach(Scoreboard::deactivate);
-        boards.clear();
+        if (updateTaskId != -1) {
+
+            Bukkit.getScheduler().cancelTask(updateTaskId);
+            updateTaskId = -1;
+
+        }
+
+        sidebars.values().forEach(PlayerSidebar::close);
+        sidebars.clear();
+
+        if (scoreboardLibrary != null) {
+
+            scoreboardLibrary.close();
+
+        }
 
     }
 
@@ -86,52 +128,83 @@ public class ScoreboardOG extends JavaPlugin {
 
     public void openBoard(Player player) {
 
-        final Scoreboard board = ScoreboardLib.createScoreboard(player).setHandler(new ScoreboardHandler() {
+        if (scoreboardLibrary == null) {
 
-            @Override
-            public String getTitle(Player p) {
+            return;
 
-                return "&4♥ &a&lTrue&c&lOG&r&e Network &4♥";
+        }
 
-            }
+        closeBoard(player);
 
-            @Override
-            public java.util.List<Entry> getEntries(Player p) {
-
-                // Fetch LuckPerms prefix with formatting.
-                String lpPrefix = getLuckPermsPrefixLegacy(p);
-                lpPrefix = stripLeadingReset(stripTrailingReset(lpPrefix));
-
-                // Bleed formatting from prefix into name.
-                final String youTail = joinSpace(lpPrefix, p.getName());
-                final String youLine = "&aYou:&r " + youTail + "&r";
-
-                // Independently formatted Union tag.
-                final String unionTag = expandMM(p, "<placeholderapi_player:%simpleclans_clan_color_tag%>");
-                final String unionLine = "&cUnion: &r" + unionTag + "&r";
-
-                return new EntryBuilder().next("&c&m----&6&m----&e&m----&2&m----&9&m----&5&m----").next(youLine).blank()
-                        .next("&bDiamonds: " + expandMM(p, "<diamondbankog_balance>")).blank().next(unionLine).blank()
-                        .next("&2Kills: " + expandMM(p, "<placeholderapi_player:%statistic_player_kills%>")).blank()
-                        .next("&4Deaths: " + expandMM(p, "<placeholderapi_player:%statistic_deaths%>")).blank()
-                        .next("&4&m--&0&m--&4> &etrue-og.net &4<&0&m--&4&m--").build();
-
-            }
-
-        }).setUpdateInterval(10L);
-        board.activate();
-        boards.put(player.getUniqueId(), board);
+        PlayerSidebar sidebar = new PlayerSidebar(player);
+        sidebars.put(player.getUniqueId(), sidebar);
 
     }
 
     public void closeBoard(Player player) {
 
-        final Scoreboard board = boards.remove(player.getUniqueId());
-        if (board != null) {
+        final PlayerSidebar sidebar = sidebars.remove(player.getUniqueId());
+        if (sidebar != null) {
 
-            board.deactivate();
+            sidebar.close();
 
         }
+
+    }
+
+    private Component createYouLine(Player p) {
+
+        String lpPrefix = getLuckPermsPrefixLegacy(p);
+        lpPrefix = stripLeadingReset(stripTrailingReset(lpPrefix));
+
+        final String youTail = joinSpace(lpPrefix, p.getName());
+        final Component label = legacyText("&aYou:&r ");
+        final Component tail = legacyText(youTail);
+        return label.append(tail);
+
+    }
+
+    private Component createUnionLine(Player p) {
+
+        final Component label = legacyText("&cUnion: &r");
+        final Component unionTag = expandMM(p, "<placeholderapi_player:%simpleclans_clan_color_tag%>");
+        return label.append(unionTag);
+
+    }
+
+    private Component createDiamondsLine(Player p) {
+
+        final Component label = legacyText("&bDiamonds: ");
+        final Component value = expandMM(p, "<diamondbankog_balance>");
+        return label.append(value);
+
+    }
+
+    private Component createKillsLine(Player p) {
+
+        final Component label = legacyText("&2Kills: &r");
+        final Component value = expandMM(p, "<placeholderapi_player:%statistic_player_kills%>");
+        return label.append(value);
+
+    }
+
+    private Component createDeathsLine(Player p) {
+
+        final Component label = legacyText("&4Deaths: &r");
+        final Component value = expandMM(p, "<placeholderapi_player:%statistic_deaths%>");
+        return label.append(value);
+
+    }
+
+    private static Component legacyText(String input) {
+
+        if (input == null || StringUtils.isEmpty(input)) {
+
+            return Component.empty();
+
+        }
+
+        return LEGACY_SERIALIZER.deserialize(input);
 
     }
 
@@ -170,10 +243,10 @@ public class ScoreboardOG extends JavaPlugin {
     }
 
     /// Return expanded text or null depending on if the String is populated.
-    private static String expandMM(Player p, String miniMsg) {
+    private static Component expandMM(Player p, String miniMsg) {
 
-        final String out = UtilitiesOG.trueogExpand(miniMsg, p).content();
-        return out == null ? "" : out;
+        final Component out = UtilitiesOG.trueogExpand(miniMsg, p);
+        return out == null ? Component.empty() : out;
 
     }
 
@@ -235,6 +308,48 @@ public class ScoreboardOG extends JavaPlugin {
         }
 
         return sb.toString();
+
+    }
+
+    private final class PlayerSidebar {
+
+        private final Player player;
+        private final Sidebar sidebar;
+        private final ComponentSidebarLayout layout;
+
+        private PlayerSidebar(Player player) {
+
+            this.player = player;
+            this.sidebar = scoreboardLibrary.createSidebar();
+
+            SidebarComponent titleComponent = SidebarComponent
+                    .staticLine(legacyText("&4♥ &a&lTrue&c&lOG&r&e Network &4♥"));
+
+            SidebarComponent lines = SidebarComponent.builder()
+                    .addStaticLine(legacyText("&c&m----&6&m----&e&m----&2&m----&9&m----&5&m----"))
+                    .addDynamicLine(() -> createYouLine(this.player)).addBlankLine()
+                    .addDynamicLine(() -> createDiamondsLine(this.player)).addBlankLine()
+                    .addDynamicLine(() -> createUnionLine(this.player)).addBlankLine()
+                    .addDynamicLine(() -> createKillsLine(this.player)).addBlankLine()
+                    .addDynamicLine(() -> createDeathsLine(this.player)).addBlankLine()
+                    .addStaticLine(legacyText("&4&m--&0&m--&4> &etrue-og.net &4<&0&m--&4&m--")).build();
+
+            this.layout = new ComponentSidebarLayout(titleComponent, lines);
+            this.sidebar.addPlayer(player);
+
+        }
+
+        private void tick() {
+
+            layout.apply(sidebar);
+
+        }
+
+        private void close() {
+
+            sidebar.close();
+
+        }
 
     }
 

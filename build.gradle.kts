@@ -34,6 +34,8 @@ version = "1.0" // Declare plugin version (will be in .jar).
 
 val apiVersion = "1.19" // Declare minecraft server target version.
 
+val scoreboardLibraryVersion = "2.4.3"
+
 /* ----------------------------- Resources ----------------------------- */
 tasks.named<ProcessResources>("processResources") {
     val props = mapOf("version" to version, "apiVersion" to apiVersion)
@@ -47,7 +49,8 @@ repositories {
     mavenCentral() // Import the Maven Central Maven Repository.
     gradlePluginPortal() // Import the Gradle Plugin Portal Maven Repository.
     maven { url = uri("https://repo.purpurmc.org/snapshots") } // Import the PurpurMC Maven Repository.
-    maven { url = uri("https://repo.hotten.cloud/snapshots") } // Import the ScoreboardLib library.
+    maven { url = uri("https://repo.codemc.io/repository/maven-releases/") }
+    maven { url = uri("https://repo.codemc.io/repository/maven-snapshots/") }
     maven { url = uri("file://${System.getProperty("user.home")}/.m2/repository") }
     System.getProperty("SELF_MAVEN_LOCAL_REPO")?.let { // TrueOG Bootstrap mavenLocal().
         val dir = file(it)
@@ -70,7 +73,16 @@ dependencies {
     compileOnlyApi(project(":libs:DiamondBank-OG")) {
         attributes { attribute(kotlinAttribute, true) }
     } // Import TrueOG network DiamondBank-OG Kotlin API (from source).
-    implementation("me.tigerhix.lib:scoreboard:1.0.1-SNAPSHOT")
+    implementation("net.megavex:scoreboard-library-api:$scoreboardLibraryVersion") // Import scoreboard library API.
+    runtimeOnly(
+        "net.megavex:scoreboard-library-implementation:$scoreboardLibraryVersion"
+    ) // Import scoreboard library implementation.
+    implementation(
+        "net.megavex:scoreboard-library-extra-kotlin:$scoreboardLibraryVersion"
+    ) // Kotlin specific extensions.
+    runtimeOnly(
+        "net.megavex:scoreboard-library-packetevents:$scoreboardLibraryVersion"
+    ) // PacketEvents version supports 1.8+
 }
 
 apply(from = "eclipse.gradle.kts") // Import eclipse classpath support script.
@@ -85,6 +97,8 @@ tasks.withType<AbstractArchiveTask>().configureEach { // Ensure reproducible .ja
 tasks.shadowJar {
     exclude("io.github.miniplaceholders.*") // Exclude the MiniPlaceholders package from being shadowed.
     archiveClassifier.set("") // Use empty string instead of null.
+    isEnableRelocation = true
+    relocationPrefix = "${project.group}.shadow"
     minimize()
 }
 
