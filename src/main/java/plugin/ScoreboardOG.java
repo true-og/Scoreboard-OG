@@ -6,6 +6,13 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
+import org.apache.commons.lang3.StringUtils;
+import org.bukkit.Bukkit;
+import org.bukkit.configuration.file.FileConfiguration;
+import org.bukkit.entity.Player;
+import org.bukkit.plugin.RegisteredServiceProvider;
+import org.bukkit.plugin.java.JavaPlugin;
+
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import net.luckperms.api.LuckPerms;
@@ -16,12 +23,6 @@ import net.megavex.scoreboardlibrary.api.sidebar.Sidebar;
 import net.megavex.scoreboardlibrary.api.sidebar.component.ComponentSidebarLayout;
 import net.megavex.scoreboardlibrary.api.sidebar.component.SidebarComponent;
 import net.trueog.utilitiesog.UtilitiesOG;
-import org.apache.commons.lang3.StringUtils;
-import org.bukkit.Bukkit;
-import org.bukkit.configuration.file.FileConfiguration;
-import org.bukkit.entity.Player;
-import org.bukkit.plugin.RegisteredServiceProvider;
-import org.bukkit.plugin.java.JavaPlugin;
 
 public class ScoreboardOG extends JavaPlugin {
 
@@ -82,20 +83,18 @@ public class ScoreboardOG extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new Listeners(), this);
         Bukkit.getOnlinePlayers().forEach(this::openBoard);
 
-        this.updateTaskId = Bukkit.getScheduler().scheduleSyncRepeatingTask(this, () -> {
+        this.updateTaskId = Bukkit.getScheduler().scheduleSyncRepeatingTask(this,
+                () -> Bukkit.getOnlinePlayers().forEach((Player online) ->
+                {
 
-            for (Player online : Bukkit.getOnlinePlayers()) {
+                    final PlayerSidebar sidebar = sidebars.get(online.getUniqueId());
+                    if (sidebar != null) {
 
-                PlayerSidebar sidebar = sidebars.get(online.getUniqueId());
-                if (sidebar != null) {
+                        sidebar.tick();
 
-                    sidebar.tick();
+                    }
 
-                }
-
-            }
-
-        }, 0L, 10L);
+                }), 0L, 10L);
 
     }
 
@@ -152,15 +151,29 @@ public class ScoreboardOG extends JavaPlugin {
 
     }
 
+    private Component createRankLine(Player p) {
+
+        String lpPrefix = getLuckPermsPrefixLegacy(p);
+        lpPrefix = stripLeadingReset(stripTrailingReset(lpPrefix));
+
+        return legacyText(lpPrefix);
+
+    }
+
     private Component createYouLine(Player p) {
 
         String lpPrefix = getLuckPermsPrefixLegacy(p);
         lpPrefix = stripLeadingReset(stripTrailingReset(lpPrefix));
 
-        final String youTail = joinSpace(lpPrefix, p.getName());
-        final Component label = legacyText("&aYou:&r ");
-        final Component tail = legacyText(youTail);
-        return label.append(tail);
+        String colorCodes = extractLeadingColorCodes(lpPrefix);
+
+        if (colorCodes.isEmpty()) {
+
+            return legacyText(p.getName());
+
+        }
+
+        return legacyText(colorCodes + p.getName());
 
     }
 
@@ -276,41 +289,6 @@ public class ScoreboardOG extends JavaPlugin {
 
     }
 
-    // Ensure the prefix and name are spaced out.
-    private static String joinSpace(String... parts) {
-
-        final StringBuilder sb = new StringBuilder();
-        boolean first = true;
-        for (String part : parts) {
-
-            if (part == null) {
-
-                continue;
-
-            }
-
-            final String t = StringUtils.trim(part);
-            if (StringUtils.isEmpty(t)) {
-
-                continue;
-
-            }
-
-            if (!first) {
-
-                sb.append(' ');
-
-            }
-
-            sb.append(t);
-            first = false;
-
-        }
-
-        return sb.toString();
-
-    }
-
     private final class PlayerSidebar {
 
         private final Player player;
@@ -322,17 +300,16 @@ public class ScoreboardOG extends JavaPlugin {
             this.player = player;
             this.sidebar = scoreboardLibrary.createSidebar();
 
-            SidebarComponent titleComponent = SidebarComponent
+            final SidebarComponent titleComponent = SidebarComponent
                     .staticLine(legacyText("&4♥ &a&lTrue&c&lOG&r&e Network &4♥"));
 
-            SidebarComponent lines = SidebarComponent.builder()
-                    .addStaticLine(legacyText("&c&m----&6&m----&e&m----&2&m----&9&m----&5&m----"))
-                    .addDynamicLine(() -> createYouLine(this.player)).addBlankLine()
-                    .addDynamicLine(() -> createDiamondsLine(this.player)).addBlankLine()
+            final SidebarComponent lines = SidebarComponent.builder().addBlankLine()
+                    .addDynamicLine(() -> createRankLine(this.player)).addDynamicLine(() -> createYouLine(this.player))
+                    .addBlankLine().addDynamicLine(() -> createDiamondsLine(this.player)).addBlankLine()
                     .addDynamicLine(() -> createUnionLine(this.player)).addBlankLine()
                     .addDynamicLine(() -> createKillsLine(this.player)).addBlankLine()
                     .addDynamicLine(() -> createDeathsLine(this.player)).addBlankLine()
-                    .addStaticLine(legacyText("&4&m--&0&m--&4> &etrue-og.net &4<&0&m--&4&m--")).build();
+                    .addStaticLine(legacyText("&etrue-og.net")).build();
 
             this.layout = new ComponentSidebarLayout(titleComponent, lines);
             this.sidebar.addPlayer(player);
@@ -350,6 +327,37 @@ public class ScoreboardOG extends JavaPlugin {
             sidebar.close();
 
         }
+
+    }
+
+    private String extractLeadingColorCodes(String input) {
+
+        if (input == null || input.length() < 2) {
+
+            return "";
+
+        }
+
+        final StringBuilder out = new StringBuilder();
+
+        for (int i = 0; i < input.length() - 1; i++) {
+
+            final char c = input.charAt(i);
+            if (c != '&' && c != '§') {
+
+                break;
+
+            }
+
+            final char code = input.charAt(i + 1);
+            out.append(c).append(code);
+
+            // Skip the code character.
+            i++;
+
+        }
+
+        return out.toString();
 
     }
 
