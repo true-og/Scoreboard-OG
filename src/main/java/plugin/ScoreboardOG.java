@@ -20,6 +20,7 @@ import net.luckperms.api.cacheddata.CachedMetaData;
 import net.luckperms.api.model.user.User;
 import net.megavex.scoreboardlibrary.api.ScoreboardLibrary;
 import net.megavex.scoreboardlibrary.api.sidebar.Sidebar;
+import net.megavex.scoreboardlibrary.api.sidebar.SidebarNumberFormat;
 import net.megavex.scoreboardlibrary.api.sidebar.component.ComponentSidebarLayout;
 import net.megavex.scoreboardlibrary.api.sidebar.component.SidebarComponent;
 import net.trueog.utilitiesog.UtilitiesOG;
@@ -299,6 +300,7 @@ public class ScoreboardOG extends JavaPlugin {
 
             this.player = player;
             this.sidebar = scoreboardLibrary.createSidebar();
+            this.sidebar.numberFormat(SidebarNumberFormat.blank());
 
             final SidebarComponent titleComponent = SidebarComponent
                     .staticLine(legacyText("&4♥ &a&lTrue&c&lOG&r&e Network &4♥"));
