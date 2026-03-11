@@ -70,9 +70,6 @@ dependencies {
     compileOnly("io.github.miniplaceholders:miniplaceholders-api:2.2.3") // Import MiniPlaceholders API.
     compileOnly("net.luckperms:api:5.5") // Import LuckPerms API.
     compileOnlyApi(project(":libs:Utilities-OG")) // Import TrueOG Network Utilities-OG Java API (from source).
-    compileOnlyApi(project(":libs:DiamondBank-OG")) {
-        attributes { attribute(kotlinAttribute, true) }
-    } // Import TrueOG network DiamondBank-OG Kotlin API (from source).
     implementation("net.megavex:scoreboard-library-api:$scoreboardLibraryVersion") // Import scoreboard library API.
     runtimeOnly(
         "net.megavex:scoreboard-library-implementation:$scoreboardLibraryVersion"

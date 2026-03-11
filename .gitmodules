@@ -1,9 +1,6 @@
 [submodule "libs/Utilities-OG"]
 	path = libs/Utilities-OG
 	url = https://github.com/true-og/Utilities-OG
-[submodule "libs/DiamondBank-OG"]
-	path = libs/DiamondBank-OG
-	url = https://github.com/true-og/DiamondBank-OG
 [submodule "libs/Chat-OG"]
 	path = libs/Chat-OG
 	url = https://github.com/true-og/Chat-OG
