@@ -188,7 +188,7 @@ public class ScoreboardOG extends JavaPlugin {
 	private Component createDiamondsLine(Player p) {
 
 		final Component label = legacyText("&bDiamonds: ");
-		final Component value = expandText(p, "%diamondbankog_balance%");
+		final Component value = expandText(p, "<diamondbankog_balance>");
 		return label.append(value);
 
 	}
