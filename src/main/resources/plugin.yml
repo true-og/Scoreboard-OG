@@ -8,9 +8,10 @@ main: plugin.ScoreboardOG
 depend: 
   - DiamondBank-OG
   - Utilities-OG
-  - PacketEvents-OG
+  - PacketEvents
   - LuckPerms
 softdepend:
+  - PlaceholderAPI
   - ProtocolLib
   - ViaVersion
   - ViaBackwards
