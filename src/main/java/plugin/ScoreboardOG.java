@@ -255,7 +255,7 @@ public class ScoreboardOG extends JavaPlugin {
 
 	}
 
-	/// Return expanded text or null depending on if the String is populated.
+	// Return expanded text or null depending on if the String is populated.
 	private static Component expandText(Player p, String text) {
 
 		if (text == null || StringUtils.isEmpty(text)) {
@@ -264,15 +264,18 @@ public class ScoreboardOG extends JavaPlugin {
 
 		}
 
+		// TODO: Remove in 1.20. Expand PlaceholderAPI Placeholders First.
 		String expandedText = text;
-
 		if (Bukkit.getPluginManager().getPlugin("PlaceholderAPI") != null) {
 
 			expandedText = PlaceholderAPI.setPlaceholders(p, expandedText);
 
 		}
 
+		// Expand MiniPlaceholders and format the message.
 		final Component out = UtilitiesOG.trueogExpand(expandedText, p);
+
+		// Pass on the message.
 		return out == null ? Component.empty() : out;
 
 	}
