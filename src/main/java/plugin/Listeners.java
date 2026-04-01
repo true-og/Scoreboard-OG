@@ -10,18 +10,18 @@ import org.bukkit.event.player.PlayerQuitEvent;
 
 public class Listeners implements Listener {
 
-	@EventHandler(priority = EventPriority.HIGH)
-	public void onPlayerJoin(PlayerJoinEvent event) {
+    @EventHandler(priority = EventPriority.HIGH)
+    public void onPlayerJoin(PlayerJoinEvent event) {
 
-		ScoreboardOG.getInstance().openBoard(event.getPlayer());
+        ScoreboardOG.getInstance().openBoard(event.getPlayer());
 
-	}
+    }
 
-	@EventHandler(priority = EventPriority.HIGH)
-	public void onPlayerQuit(PlayerQuitEvent event) {
+    @EventHandler(priority = EventPriority.HIGH)
+    public void onPlayerQuit(PlayerQuitEvent event) {
 
-		ScoreboardOG.getInstance().closeBoard(event.getPlayer());
+        ScoreboardOG.getInstance().closeBoard(event.getPlayer());
 
-	}
+    }
 
 }

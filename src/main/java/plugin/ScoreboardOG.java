@@ -2,6 +2,8 @@
 // Author: NotAlexNoyle.
 package plugin;
 
+import java.io.File;
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -9,6 +11,7 @@ import java.util.UUID;
 import org.apache.commons.lang3.StringUtils;
 import org.bukkit.Bukkit;
 import org.bukkit.configuration.file.FileConfiguration;
+import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.RegisteredServiceProvider;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -27,355 +30,401 @@ import net.trueog.utilitiesog.UtilitiesOG;
 
 public class ScoreboardOG extends JavaPlugin {
 
-	private static final LegacyComponentSerializer LEGACY_SERIALIZER = LegacyComponentSerializer.legacyAmpersand();
+    private static final LegacyComponentSerializer LEGACY_SERIALIZER = LegacyComponentSerializer.legacyAmpersand();
 
-	private static ScoreboardOG instance;
+    private static ScoreboardOG instance;
 
-	private FileConfiguration config;
-	private final Map<UUID, PlayerSidebar> sidebars = new HashMap<>();
+    private FileConfiguration config;
+    private final Map<UUID, PlayerSidebar> sidebars = new HashMap<>();
 
-	private LuckPerms luckPerms;
-	private ScoreboardLibrary scoreboardLibrary;
-	private int updateTaskId = -1;
+    private LuckPerms luckPerms;
+    private ScoreboardLibrary scoreboardLibrary;
+    private int updateTaskId = -1;
 
-	public static ScoreboardOG getInstance() {
+    private File scoreboardPreferencesFile;
+    private YamlConfiguration scoreboardPreferences;
 
-		return instance;
+    public static ScoreboardOG getInstance() {
 
-	}
+        return instance;
 
-	@Override
-	public void onLoad() {
+    }
 
-		instance = this;
+    @Override
+    public void onLoad() {
 
-	}
+        instance = this;
 
-	@Override
-	public void onEnable() {
+    }
 
-		saveDefaultConfig();
-		this.config = getConfig();
+    @Override
+    public void onEnable() {
 
-		try {
+        saveDefaultConfig();
+        this.config = getConfig();
 
-			this.scoreboardLibrary = ScoreboardLibrary.loadScoreboardLibrary(this);
+        this.scoreboardPreferencesFile = new File(getDataFolder(), "scoreboardPreferences.yml");
+        if (!scoreboardPreferencesFile.exists()) {
 
-		} catch (Exception e) {
+            try {
 
-			this.scoreboardLibrary = null;
-			getLogger().warning("No scoreboard packet adapter available, disabling scoreboards.");
+                getDataFolder().mkdirs();
+                scoreboardPreferencesFile.createNewFile();
 
-		}
+            } catch (IOException error) {
 
-		// Hook LuckPerms API.
-		final RegisteredServiceProvider<LuckPerms> provider = Bukkit.getServicesManager()
-				.getRegistration(LuckPerms.class);
-		if (provider != null) {
+                throw new RuntimeException(error);
 
-			this.luckPerms = provider.getProvider();
+            }
 
-		} else {
+        }
 
-			getLogger().severe("LuckPerms not found – prefixes will be empty.");
+        this.scoreboardPreferences = YamlConfiguration.loadConfiguration(scoreboardPreferencesFile);
 
-		}
+        try {
 
-		getServer().getPluginManager().registerEvents(new Listeners(), this);
-		Bukkit.getOnlinePlayers().forEach(this::openBoard);
+            this.scoreboardLibrary = ScoreboardLibrary.loadScoreboardLibrary(this);
 
-		this.updateTaskId = Bukkit.getScheduler().scheduleSyncRepeatingTask(this,
-				() -> Bukkit.getOnlinePlayers().forEach((Player online) ->
-				{
+        } catch (Exception e) {
 
-					final PlayerSidebar sidebar = sidebars.get(online.getUniqueId());
-					if (sidebar != null) {
+            this.scoreboardLibrary = null;
+            getLogger().warning("No scoreboard packet adapter available, disabling scoreboards.");
 
-						sidebar.tick();
+        }
 
-					}
+        // Hook LuckPerms API.
+        final RegisteredServiceProvider<LuckPerms> provider = Bukkit.getServicesManager()
+                .getRegistration(LuckPerms.class);
+        if (provider != null) {
 
-				}), 0L, 10L);
+            this.luckPerms = provider.getProvider();
 
-	}
+        } else {
 
-	@Override
-	public void onDisable() {
+            getLogger().severe("LuckPerms not found – prefixes will be empty.");
 
-		if (updateTaskId != -1) {
+        }
 
-			Bukkit.getScheduler().cancelTask(updateTaskId);
-			updateTaskId = -1;
+        getServer().getPluginManager().registerEvents(new Listeners(), this);
+        getCommand("togglescoreboard").setExecutor(new ToggleScoreboardCommand());
+        Bukkit.getOnlinePlayers().forEach(this::openBoard);
 
-		}
+        this.updateTaskId = Bukkit.getScheduler().scheduleSyncRepeatingTask(this,
+                () -> Bukkit.getOnlinePlayers().forEach((Player online) ->
+                {
 
-		sidebars.values().forEach(PlayerSidebar::close);
-		sidebars.clear();
+                    final PlayerSidebar sidebar = sidebars.get(online.getUniqueId());
+                    if (sidebar != null) {
 
-		if (scoreboardLibrary != null) {
+                        sidebar.tick();
 
-			scoreboardLibrary.close();
+                    }
 
-		}
+                }), 0L, 10L);
 
-	}
+    }
 
-	public FileConfiguration config() {
+    @Override
+    public void onDisable() {
 
-		return config;
+        if (updateTaskId != -1) {
 
-	}
+            Bukkit.getScheduler().cancelTask(updateTaskId);
+            updateTaskId = -1;
 
-	public void openBoard(Player player) {
+        }
 
-		if (scoreboardLibrary == null) {
+        sidebars.values().forEach(PlayerSidebar::close);
+        sidebars.clear();
 
-			return;
+        if (scoreboardLibrary != null) {
 
-		}
+            scoreboardLibrary.close();
 
-		closeBoard(player);
+        }
 
-		final PlayerSidebar sidebar = new PlayerSidebar(player);
-		sidebars.put(player.getUniqueId(), sidebar);
+    }
 
-	}
+    public FileConfiguration config() {
 
-	public void closeBoard(Player player) {
+        return config;
 
-		final PlayerSidebar sidebar = sidebars.remove(player.getUniqueId());
-		if (sidebar != null) {
+    }
 
-			sidebar.close();
+    public YamlConfiguration getScoreboardPreferences() {
 
-		}
+        return scoreboardPreferences;
 
-	}
+    }
 
-	private Component createRankLine(Player p) {
+    public File getScoreboardPreferencesFile() {
 
-		String lpPrefix = getLuckPermsPrefixLegacy(p);
-		lpPrefix = stripLeadingReset(stripTrailingReset(lpPrefix));
+        return scoreboardPreferencesFile;
 
-		return legacyText(lpPrefix);
+    }
 
-	}
+    public boolean isScoreboardHidden(Player player) {
 
-	private Component createYouLine(Player p) {
+        return scoreboardPreferences.getBoolean(player.getUniqueId().toString());
 
-		String lpPrefix = getLuckPermsPrefixLegacy(p);
-		lpPrefix = stripLeadingReset(stripTrailingReset(lpPrefix));
+    }
 
-		final String colorCodes = extractLeadingColorCodes(lpPrefix);
-		if (StringUtils.isEmpty(colorCodes)) {
+    public void openBoard(Player player) {
 
-			return legacyText(p.getName());
+        if (scoreboardLibrary == null) {
 
-		}
+            return;
 
-		return legacyText(colorCodes + p.getName());
+        }
 
-	}
+        if (isScoreboardHidden(player)) {
 
-	private Component createUnionLine(Player p) {
+            return;
 
-		final Component label = legacyText("&cUnion: &r");
-		final Component unionTag = expandText(p, "%simpleclans_clan_color_tag%");
-		return label.append(unionTag);
+        }
 
-	}
+        closeBoard(player);
 
-	private Component createDiamondsLine(Player p) {
+        final PlayerSidebar sidebar = new PlayerSidebar(player);
+        sidebars.put(player.getUniqueId(), sidebar);
 
-		final Component label = legacyText("&bDiamonds: ");
-		final Component value = expandText(p, "<diamondbankog_balance>");
-		return label.append(value);
+    }
 
-	}
+    public void closeBoard(Player player) {
 
-	private Component createKillsLine(Player p) {
+        final PlayerSidebar sidebar = sidebars.remove(player.getUniqueId());
+        if (sidebar != null) {
 
-		final Component label = legacyText("&2Kills: &r");
-		final Component value = expandText(p, "%statistic_player_kills%");
-		return label.append(value);
+            sidebar.close();
 
-	}
+        }
 
-	private Component createDeathsLine(Player p) {
+    }
 
-		final Component label = legacyText("&4Deaths: &r");
-		final Component value = expandText(p, "%statistic_deaths%");
-		return label.append(value);
+    private Component createRankLine(Player p) {
 
-	}
+        String lpPrefix = getLuckPermsPrefixLegacy(p);
+        lpPrefix = stripLeadingReset(stripTrailingReset(lpPrefix));
 
-	private static Component legacyText(String input) {
+        return legacyText(lpPrefix);
 
-		if (input == null || StringUtils.isEmpty(input)) {
+    }
 
-			return Component.empty();
+    private Component createYouLine(Player p) {
 
-		}
+        String lpPrefix = getLuckPermsPrefixLegacy(p);
+        lpPrefix = stripLeadingReset(stripTrailingReset(lpPrefix));
 
-		return LEGACY_SERIALIZER.deserialize(input);
+        final String colorCodes = extractLeadingColorCodes(lpPrefix);
+        if (StringUtils.isEmpty(colorCodes)) {
 
-	}
+            return legacyText(p.getName());
 
-	// Resolve the player's LuckPerms prefix as legacy color codes with any
-	// serializing.
-	private String getLuckPermsPrefixLegacy(Player p) {
+        }
 
-		// If there is no LuckPerms, return empty handed.
-		if (luckPerms == null) {
+        return legacyText(colorCodes + p.getName());
 
-			return "";
+    }
 
-		}
+    private Component createUnionLine(Player p) {
 
-		// If there is no user, return empty handed.
-		final User user = luckPerms.getUserManager().getUser(p.getUniqueId());
-		if (user == null) {
+        final Component label = legacyText("&cUnion: &r");
+        final Component unionTag = expandText(p, "%simpleclans_clan_color_tag%");
+        return label.append(unionTag);
 
-			return "";
+    }
 
-		}
+    private Component createDiamondsLine(Player p) {
 
-		// If a player has no prefix in LuckPerms, return empty handed.
-		final CachedMetaData meta = user.getCachedData().getMetaData();
-		final String prefix = meta.getPrefix();
-		if (prefix == null || StringUtils.isEmpty(prefix)) {
+        final Component label = legacyText("&bDiamonds: ");
+        final Component value = expandText(p, "<diamondbankog_balance>");
+        return label.append(value);
 
-			return "";
+    }
 
-		}
+    private Component createKillsLine(Player p) {
 
-		// Normalize to legacy color codes for ScoreboardLib pipeline.
-		// Pass on the prefix colors.
-		return StringUtils.trim(prefix.replace('§', '&'));
+        final Component label = legacyText("&2Kills: &r");
+        final Component value = expandText(p, "%statistic_player_kills%");
+        return label.append(value);
 
-	}
+    }
 
-	// Return expanded text or null depending on if the String is populated.
-	private static Component expandText(Player p, String text) {
+    private Component createDeathsLine(Player p) {
 
-		if (text == null || StringUtils.isEmpty(text)) {
+        final Component label = legacyText("&4Deaths: &r");
+        final Component value = expandText(p, "%statistic_deaths%");
+        return label.append(value);
 
-			return Component.empty();
+    }
 
-		}
+    private static Component legacyText(String input) {
 
-		// TODO: Remove in 1.20. Expand PlaceholderAPI Placeholders First.
-		String expandedText = text;
-		if (Bukkit.getPluginManager().getPlugin("PlaceholderAPI") != null) {
+        if (input == null || StringUtils.isEmpty(input)) {
 
-			expandedText = PlaceholderAPI.setPlaceholders(p, expandedText);
+            return Component.empty();
 
-		}
+        }
 
-		// Expand MiniPlaceholders and format the message.
-		final Component out = UtilitiesOG.trueogExpand(expandedText, p);
+        return LEGACY_SERIALIZER.deserialize(input);
 
-		// Pass on the message.
-		return out == null ? Component.empty() : out;
+    }
 
-	}
+    // Resolve the player's LuckPerms prefix as legacy color codes with any
+    // serializing.
+    private String getLuckPermsPrefixLegacy(Player p) {
 
-	// Strip trailing resets.
-	private static String stripTrailingReset(String s) {
+        // If there is no LuckPerms, return empty handed.
+        if (luckPerms == null) {
 
-		if (s == null || StringUtils.isEmpty(s)) {
+            return "";
 
-			return "";
+        }
 
-		}
+        // If there is no user, return empty handed.
+        final User user = luckPerms.getUserManager().getUser(p.getUniqueId());
+        if (user == null) {
 
-		return s.replaceAll("(?i)(?:\\s*(?:<reset>|[&§]r))+$", "");
+            return "";
 
-	}
+        }
 
-	// Strip leading resets.
-	private static String stripLeadingReset(String s) {
+        // If a player has no prefix in LuckPerms, return empty handed.
+        final CachedMetaData meta = user.getCachedData().getMetaData();
+        final String prefix = meta.getPrefix();
+        if (prefix == null || StringUtils.isEmpty(prefix)) {
 
-		if (s == null || StringUtils.isEmpty(s)) {
+            return "";
 
-			return "";
+        }
 
-		}
+        // Normalize to legacy color codes for ScoreboardLib pipeline.
+        // Pass on the prefix colors.
+        return StringUtils.trim(prefix.replace('§', '&'));
 
-		return s.replaceFirst("(?i)^(?:\\s*(?:<reset>|[&§]r))+", "");
+    }
 
-	}
+    // Return expanded text or null depending on if the String is populated.
+    private static Component expandText(Player p, String text) {
 
-	private final class PlayerSidebar {
+        if (text == null || StringUtils.isEmpty(text)) {
 
-		private final Player player;
-		private final Sidebar sidebar;
-		private final ComponentSidebarLayout layout;
+            return Component.empty();
 
-		private PlayerSidebar(Player player) {
+        }
 
-			this.player = player;
-			this.sidebar = scoreboardLibrary.createSidebar();
+        // TODO: Remove in 1.20. Expand PlaceholderAPI Placeholders First.
+        String expandedText = text;
+        if (Bukkit.getPluginManager().getPlugin("PlaceholderAPI") != null) {
 
-			final SidebarComponent titleComponent = SidebarComponent
-					.staticLine(legacyText("&4♥ &a&lTrue&c&lOG&r&e Network &4♥"));
+            expandedText = PlaceholderAPI.setPlaceholders(p, expandedText);
 
-			final SidebarComponent lines = SidebarComponent.builder().addBlankLine()
-					.addDynamicLine(() -> createRankLine(this.player)).addDynamicLine(() -> createYouLine(this.player))
-					.addBlankLine().addDynamicLine(() -> createDiamondsLine(this.player)).addBlankLine()
-					.addDynamicLine(() -> createUnionLine(this.player)).addBlankLine()
-					.addDynamicLine(() -> createKillsLine(this.player)).addBlankLine()
-					.addDynamicLine(() -> createDeathsLine(this.player)).addBlankLine()
-					.addStaticLine(legacyText("&etrue-og.net")).build();
+        }
 
-			this.layout = new ComponentSidebarLayout(titleComponent, lines);
-			this.sidebar.addPlayer(player);
+        // Expand MiniPlaceholders and format the message.
+        final Component out = UtilitiesOG.trueogExpand(expandedText, p);
 
-		}
+        // Pass on the message.
+        return out == null ? Component.empty() : out;
 
-		private void tick() {
+    }
 
-			layout.apply(sidebar);
+    // Strip trailing resets.
+    private static String stripTrailingReset(String s) {
 
-		}
+        if (s == null || StringUtils.isEmpty(s)) {
 
-		private void close() {
+            return "";
 
-			sidebar.close();
+        }
 
-		}
+        return s.replaceAll("(?i)(?:\\s*(?:<reset>|[&§]r))+$", "");
 
-	}
+    }
 
-	private String extractLeadingColorCodes(String input) {
+    // Strip leading resets.
+    private static String stripLeadingReset(String s) {
 
-		if (input == null || input.length() < 2) {
+        if (s == null || StringUtils.isEmpty(s)) {
 
-			return "";
+            return "";
 
-		}
+        }
 
-		final StringBuilder out = new StringBuilder();
+        return s.replaceFirst("(?i)^(?:\\s*(?:<reset>|[&§]r))+", "");
 
-		for (int i = 0; i < input.length() - 1; i++) {
+    }
 
-			final char c = input.charAt(i);
-			if (c != '&' && c != '§') {
+    private final class PlayerSidebar {
 
-				break;
+        private final Player player;
+        private final Sidebar sidebar;
+        private final ComponentSidebarLayout layout;
 
-			}
+        private PlayerSidebar(Player player) {
 
-			final char code = input.charAt(i + 1);
-			out.append(c).append(code);
+            this.player = player;
+            this.sidebar = scoreboardLibrary.createSidebar();
 
-			// Skip the code character.
-			i++;
+            final SidebarComponent titleComponent = SidebarComponent
+                    .staticLine(legacyText("&4♥ &a&lTrue&c&lOG&r&e Network &4♥"));
 
-		}
+            final SidebarComponent lines = SidebarComponent.builder().addBlankLine()
+                    .addDynamicLine(() -> createRankLine(this.player)).addDynamicLine(() -> createYouLine(this.player))
+                    .addBlankLine().addDynamicLine(() -> createDiamondsLine(this.player)).addBlankLine()
+                    .addDynamicLine(() -> createUnionLine(this.player)).addBlankLine()
+                    .addDynamicLine(() -> createKillsLine(this.player)).addBlankLine()
+                    .addDynamicLine(() -> createDeathsLine(this.player)).addBlankLine()
+                    .addStaticLine(legacyText("&etrue-og.net")).build();
 
-		return out.toString();
+            this.layout = new ComponentSidebarLayout(titleComponent, lines);
+            this.sidebar.addPlayer(player);
 
-	}
+        }
+
+        private void tick() {
+
+            layout.apply(sidebar);
+
+        }
+
+        private void close() {
+
+            sidebar.close();
+
+        }
+
+    }
+
+    private String extractLeadingColorCodes(String input) {
+
+        if (input == null || input.length() < 2) {
+
+            return "";
+
+        }
+
+        final StringBuilder out = new StringBuilder();
+
+        for (int i = 0; i < input.length() - 1; i++) {
+
+            final char c = input.charAt(i);
+            if (c != '&' && c != '§') {
+
+                break;
+
+            }
+
+            final char code = input.charAt(i + 1);
+            out.append(c).append(code);
+
+            // Skip the code character.
+            i++;
+
+        }
+
+        return out.toString();
+
+    }
 
 }

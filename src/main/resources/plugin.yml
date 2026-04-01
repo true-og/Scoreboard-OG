@@ -16,3 +16,12 @@ softdepend:
   - ViaVersion
   - ViaBackwards
   - ViaRewind
+commands:
+  togglescoreboard:
+    description: Toggle the sidebar scoreboard on or off.
+    usage: /togglescoreboard
+    permission: scoreboard.toggle
+permissions:
+  scoreboard.toggle:
+    description: Allows a player to toggle their scoreboard visibility.
+    default: true
