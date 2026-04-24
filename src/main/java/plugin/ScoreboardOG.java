@@ -23,14 +23,12 @@ import net.luckperms.api.LuckPerms;
 import net.luckperms.api.cacheddata.CachedMetaData;
 import net.luckperms.api.model.user.User;
 import net.megavex.scoreboardlibrary.api.ScoreboardLibrary;
-import net.megavex.scoreboardlibrary.api.objective.ScoreFormat;
 import net.megavex.scoreboardlibrary.api.sidebar.Sidebar;
 import net.trueog.utilitiesog.UtilitiesOG;
 
 public class ScoreboardOG extends JavaPlugin {
 
     private static final LegacyComponentSerializer LEGACY_SERIALIZER = LegacyComponentSerializer.legacyAmpersand();
-    private static final ScoreFormat HIDDEN_SCORE_FORMAT = ScoreFormat.blank();
     private static final Component EMPTY_LINE = Component.empty();
     private static final Component SIDEBAR_TITLE = legacyText("&4♥ &a&lTrue&c&lOG&r&e Network &4♥");
     private static final Component FOOTER_LINE = legacyText("&etrue-og.net");
@@ -232,7 +230,7 @@ public class ScoreboardOG extends JavaPlugin {
     private Component createUnionLine(Player p) {
 
         final Component label = legacyText("&cUnion: &r");
-        final Component unionTag = expandText(p, "%simpleclans_clan_color_tag%");
+        final Component unionTag = expandText(p, "%simpleclans_union_color_tag%");
         return label.append(unionTag);
 
     }
@@ -248,7 +246,7 @@ public class ScoreboardOG extends JavaPlugin {
     private Component createKillsLine(Player p) {
 
         final Component label = legacyText("&2Kills: &r");
-        final Component value = expandText(p, "%statistic_player_kills%");
+        final Component value = expandText(p, "%bt_pvp_kills%");
         return label.append(value);
 
     }
@@ -256,7 +254,7 @@ public class ScoreboardOG extends JavaPlugin {
     private Component createDeathsLine(Player p) {
 
         final Component label = legacyText("&4Deaths: &r");
-        final Component value = expandText(p, "%statistic_deaths%");
+        final Component value = expandText(p, "%bt_pve_deaths%");
         return label.append(value);
 
     }
@@ -375,8 +373,6 @@ public class ScoreboardOG extends JavaPlugin {
 
             sidebar.title(SIDEBAR_TITLE);
 
-            // 1.20.3+ clients hide sidebar numbers using NumberFormat, while older
-            // clients ignore the format and keep the vanilla numeric fallback.
             setLine(0, EMPTY_LINE);
             setLine(1, createRankLine(player));
             setLine(2, createYouLine(player));
@@ -401,7 +397,7 @@ public class ScoreboardOG extends JavaPlugin {
 
         private void setLine(int index, Component component) {
 
-            sidebar.line(index, component, HIDDEN_SCORE_FORMAT);
+            sidebar.line(index, component);
 
         }
 
