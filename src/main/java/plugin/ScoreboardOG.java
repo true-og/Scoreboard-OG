@@ -23,14 +23,17 @@ import net.luckperms.api.LuckPerms;
 import net.luckperms.api.cacheddata.CachedMetaData;
 import net.luckperms.api.model.user.User;
 import net.megavex.scoreboardlibrary.api.ScoreboardLibrary;
+import net.megavex.scoreboardlibrary.api.objective.ScoreFormat;
 import net.megavex.scoreboardlibrary.api.sidebar.Sidebar;
-import net.megavex.scoreboardlibrary.api.sidebar.component.ComponentSidebarLayout;
-import net.megavex.scoreboardlibrary.api.sidebar.component.SidebarComponent;
 import net.trueog.utilitiesog.UtilitiesOG;
 
 public class ScoreboardOG extends JavaPlugin {
 
     private static final LegacyComponentSerializer LEGACY_SERIALIZER = LegacyComponentSerializer.legacyAmpersand();
+    private static final ScoreFormat HIDDEN_SCORE_FORMAT = ScoreFormat.blank();
+    private static final Component EMPTY_LINE = Component.empty();
+    private static final Component SIDEBAR_TITLE = legacyText("&4♥ &a&lTrue&c&lOG&r&e Network &4♥");
+    private static final Component FOOTER_LINE = legacyText("&etrue-og.net");
 
     private static ScoreboardOG instance;
 
@@ -359,38 +362,46 @@ public class ScoreboardOG extends JavaPlugin {
 
         private final Player player;
         private final Sidebar sidebar;
-        private final ComponentSidebarLayout layout;
 
         private PlayerSidebar(Player player) {
 
             this.player = player;
             this.sidebar = scoreboardLibrary.createSidebar();
-
-            final SidebarComponent titleComponent = SidebarComponent
-                    .staticLine(legacyText("&4♥ &a&lTrue&c&lOG&r&e Network &4♥"));
-
-            final SidebarComponent lines = SidebarComponent.builder().addBlankLine()
-                    .addDynamicLine(() -> createRankLine(this.player)).addDynamicLine(() -> createYouLine(this.player))
-                    .addBlankLine().addDynamicLine(() -> createDiamondsLine(this.player)).addBlankLine()
-                    .addDynamicLine(() -> createUnionLine(this.player)).addBlankLine()
-                    .addDynamicLine(() -> createKillsLine(this.player)).addBlankLine()
-                    .addDynamicLine(() -> createDeathsLine(this.player)).addBlankLine()
-                    .addStaticLine(legacyText("&etrue-og.net")).build();
-
-            this.layout = new ComponentSidebarLayout(titleComponent, lines);
             this.sidebar.addPlayer(player);
 
         }
 
         private void tick() {
 
-            layout.apply(sidebar);
+            sidebar.title(SIDEBAR_TITLE);
+
+            // 1.20.3+ clients hide sidebar numbers using NumberFormat, while older
+            // clients ignore the format and keep the vanilla numeric fallback.
+            setLine(0, EMPTY_LINE);
+            setLine(1, createRankLine(player));
+            setLine(2, createYouLine(player));
+            setLine(3, EMPTY_LINE);
+            setLine(4, createDiamondsLine(player));
+            setLine(5, EMPTY_LINE);
+            setLine(6, createUnionLine(player));
+            setLine(7, EMPTY_LINE);
+            setLine(8, createKillsLine(player));
+            setLine(9, EMPTY_LINE);
+            setLine(10, createDeathsLine(player));
+            setLine(11, EMPTY_LINE);
+            setLine(12, FOOTER_LINE);
 
         }
 
         private void close() {
 
             sidebar.close();
+
+        }
+
+        private void setLine(int index, Component component) {
+
+            sidebar.line(index, component, HIDDEN_SCORE_FORMAT);
 
         }
 
