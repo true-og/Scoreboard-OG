@@ -34,7 +34,7 @@ version = "1.0" // Declare plugin version (will be in .jar).
 
 val apiVersion = "1.19" // Declare minecraft server target version.
 
-val scoreboardLibraryVersion = "2.5.0"
+val scoreboardLibraryVersion = "2.6.0" // Declare vytskalt/scoreboard-library version.
 
 /* ----------------------------- Resources ----------------------------- */
 tasks.named<ProcessResources>("processResources") {
@@ -79,9 +79,6 @@ dependencies {
     implementation(
         "net.megavex:scoreboard-library-extra-kotlin:$scoreboardLibraryVersion"
     ) // Kotlin specific extensions.
-    runtimeOnly(
-        "net.megavex:scoreboard-library-packetevents:$scoreboardLibraryVersion"
-    ) // PacketEvents version supports 1.8+
 }
 
 apply(from = "eclipse.gradle.kts") // Import eclipse classpath support script.
@@ -99,12 +96,9 @@ tasks.shadowJar {
     isEnableRelocation = true
     relocationPrefix = "${project.group}.shadow"
     minimize {
-        // Keep the entire scoreboard library stack so ServiceLoader can find
-        // the PacketEvents adapter at runtime (PacketEvents-OG on 1.8+).
         exclude(dependency("net.megavex:scoreboard-library-api:.*"))
         exclude(dependency("net.megavex:scoreboard-library-extra-kotlin:.*"))
         exclude(dependency("net.megavex:scoreboard-library-implementation:.*"))
-        exclude(dependency("net.megavex:scoreboard-library-packetevents:.*"))
     }
 }
 

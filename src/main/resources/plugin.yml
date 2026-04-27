@@ -8,14 +8,13 @@ main: plugin.ScoreboardOG
 depend: 
   - DiamondBank-OG
   - Utilities-OG
-  - PacketEvents
   - LuckPerms
-softdepend:
-  - PlaceholderAPI
-  - ProtocolLib
   - ViaVersion
   - ViaBackwards
   - ViaRewind
+softdepend:
+  - PlaceholderAPI
+  - ProtocolLib
 commands:
   togglescoreboard:
     description: Toggle the sidebar scoreboard on or off.
