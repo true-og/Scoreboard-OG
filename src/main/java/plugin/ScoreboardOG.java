@@ -16,7 +16,6 @@ import org.bukkit.entity.Player;
 import org.bukkit.plugin.RegisteredServiceProvider;
 import org.bukkit.plugin.java.JavaPlugin;
 
-import me.clip.placeholderapi.PlaceholderAPI;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import net.luckperms.api.LuckPerms;
@@ -230,7 +229,7 @@ public class ScoreboardOG extends JavaPlugin {
     private Component createUnionLine(Player p) {
 
         final Component label = legacyText("&cUnion: &r");
-        final Component unionTag = expandText(p, "%simpleclans_union_color_tag%");
+        final Component unionTag = expandText(p, "<placeholderapi_player:%simpleclans_union_color_tag%>");
         return label.append(unionTag);
 
     }
@@ -246,7 +245,7 @@ public class ScoreboardOG extends JavaPlugin {
     private Component createKillsLine(Player p) {
 
         final Component label = legacyText("&2Kills: &r");
-        final Component value = expandText(p, "%bt_pvp_kills%");
+        final Component value = expandText(p, "<placeholderapi_player:%bt_pvp_kills%>");
         return label.append(value);
 
     }
@@ -254,7 +253,7 @@ public class ScoreboardOG extends JavaPlugin {
     private Component createDeathsLine(Player p) {
 
         final Component label = legacyText("&4Deaths: &r");
-        final Component value = expandText(p, "%bt_pve_deaths%");
+        final Component value = expandText(p, "<placeholderapi_player:%bt_pve_deaths%>");
         return label.append(value);
 
     }
@@ -314,16 +313,8 @@ public class ScoreboardOG extends JavaPlugin {
 
         }
 
-        // TODO: Remove in 1.20. Expand PlaceholderAPI Placeholders First.
-        String expandedText = text;
-        if (Bukkit.getPluginManager().getPlugin("PlaceholderAPI") != null) {
-
-            expandedText = PlaceholderAPI.setPlaceholders(p, expandedText);
-
-        }
-
         // Expand MiniPlaceholders and format the message.
-        final Component out = UtilitiesOG.trueogExpand(expandedText, p);
+        final Component out = UtilitiesOG.trueogExpand(text, p);
 
         // Pass on the message.
         return out == null ? Component.empty() : out;
