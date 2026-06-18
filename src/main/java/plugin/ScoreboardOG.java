@@ -253,7 +253,7 @@ public class ScoreboardOG extends JavaPlugin {
     private Component createDeathsLine(Player p) {
 
         final Component label = legacyText("&4Deaths: &r");
-        final Component value = expandText(p, "<placeholderapi_player:%bt_pve_deaths%>");
+        final Component value = expandText(p, "<placeholderapi_player:%bt_pvp_deaths%>");
         return label.append(value);
 
     }
