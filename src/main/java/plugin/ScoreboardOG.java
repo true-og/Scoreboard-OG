@@ -234,11 +234,15 @@ public class ScoreboardOG extends JavaPlugin {
 
     }
 
-    private Component createDiamondsLine(Player p) {
+    private Component createDiamondsLabelLine() {
 
-        final Component label = legacyText("&bDiamonds: ");
-        final Component value = expandText(p, "<diamondbankog_balance>");
-        return label.append(value);
+        return legacyText("&bDiamonds:");
+
+    }
+
+    private Component createDiamondsValueLine(Player p) {
+
+        return expandText(p, "<diamondbankog_balance>");
 
     }
 
@@ -368,15 +372,16 @@ public class ScoreboardOG extends JavaPlugin {
             setLine(1, createRankLine(player));
             setLine(2, createYouLine(player));
             setLine(3, EMPTY_LINE);
-            setLine(4, createDiamondsLine(player));
-            setLine(5, EMPTY_LINE);
-            setLine(6, createUnionLine(player));
-            setLine(7, EMPTY_LINE);
-            setLine(8, createKillsLine(player));
-            setLine(9, EMPTY_LINE);
-            setLine(10, createDeathsLine(player));
-            setLine(11, EMPTY_LINE);
-            setLine(12, FOOTER_LINE);
+            setLine(4, createDiamondsLabelLine());
+            setLine(5, createDiamondsValueLine(player));
+            setLine(6, EMPTY_LINE);
+            setLine(7, createUnionLine(player));
+            setLine(8, EMPTY_LINE);
+            setLine(9, createKillsLine(player));
+            setLine(10, EMPTY_LINE);
+            setLine(11, createDeathsLine(player));
+            setLine(12, EMPTY_LINE);
+            setLine(13, FOOTER_LINE);
 
         }
 
