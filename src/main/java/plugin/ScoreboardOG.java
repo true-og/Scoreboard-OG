@@ -242,7 +242,7 @@ public class ScoreboardOG extends JavaPlugin {
 
     private Component createDiamondsValueLine(Player p) {
 
-        return expandText(p, "<diamondbankog_balance>");
+        return expandText(p, "<color:aqua><diamondbankog_balance>");
 
     }
 
