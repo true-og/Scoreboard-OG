@@ -2,6 +2,8 @@
 
 TrueOG Network's custom Scoreboard plugin supporting dynamic MiniPlaceholders. Based on [scoreboard-library by MegavexNetwork](https://github.com/MegavexNetwork/scoreboard-library).
 
+Current version: `1.1.0` ([changelog](CHANGELOG.md)).
+
 Gradle Version: 8.14.3
 
 Java Version: 17
