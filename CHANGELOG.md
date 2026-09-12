@@ -2,6 +2,16 @@
 
 All notable changes to Scoreboard-OG are documented here.
 
+## 1.2.0 - 2026-09-12
+
+### Changes
+
+- Add a sidebar API for other plugins: `ScoreboardOGAPI.claim`, `release`,
+  `releaseAll` and `getOwner`, with a `SidebarProvider` supplying a title and up
+  to 15 lines. A claim replaces the network board with the provider's content,
+  survives `/togglescoreboard` and world changes, and hands the sidebar back on
+  release, quit, or when the provider throws.
+
 ## 1.1.0 - 2026-07-29
 
 ### Changes

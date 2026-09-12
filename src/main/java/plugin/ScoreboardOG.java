@@ -24,6 +24,7 @@ import net.luckperms.api.model.user.User;
 import net.megavex.scoreboardlibrary.api.ScoreboardLibrary;
 import net.megavex.scoreboardlibrary.api.sidebar.Sidebar;
 import net.trueog.utilitiesog.UtilitiesOG;
+import plugin.api.SidebarProvider;
 
 public class ScoreboardOG extends JavaPlugin {
 
@@ -31,11 +32,19 @@ public class ScoreboardOG extends JavaPlugin {
     private static final Component EMPTY_LINE = Component.empty();
     private static final Component SIDEBAR_TITLE = legacyText("&4♥ &a&lTrue&c&lOG&r&e Network &4♥");
     private static final Component FOOTER_LINE = legacyText("&etrue-og.net");
+    private static final int NETWORK_LINE_COUNT = 14;
 
     private static ScoreboardOG instance;
 
     private FileConfiguration config;
     private final Map<UUID, PlayerSidebar> sidebars = new HashMap<>();
+    // Sidebars other plugins currently own, kept apart from the boards so a toggle
+    // or a world change never drops a running match's content.
+    private final Map<UUID, SidebarClaim> claims = new HashMap<>();
+
+    private record SidebarClaim(String owner, SidebarProvider provider) {
+
+    }
 
     private LuckPerms luckPerms;
     private ScoreboardLibrary scoreboardLibrary;
@@ -136,6 +145,7 @@ public class ScoreboardOG extends JavaPlugin {
 
         sidebars.values().forEach(PlayerSidebar::close);
         sidebars.clear();
+        claims.clear();
 
         if (scoreboardLibrary != null) {
 
@@ -148,6 +158,70 @@ public class ScoreboardOG extends JavaPlugin {
     public FileConfiguration config() {
 
         return config;
+
+    }
+
+    public boolean isSidebarReady() {
+
+        return scoreboardLibrary != null;
+
+    }
+
+    public void claimSidebar(Player player, String owner, SidebarProvider provider) {
+
+        claims.put(player.getUniqueId(), new SidebarClaim(owner, provider));
+        final PlayerSidebar sidebar = sidebars.get(player.getUniqueId());
+        if (sidebar != null) {
+
+            sidebar.tick();
+
+        }
+
+    }
+
+    public boolean releaseSidebar(Player player, String owner) {
+
+        final SidebarClaim claim = claims.get(player.getUniqueId());
+        if (claim == null || !claim.owner().equals(owner)) {
+
+            return false;
+
+        }
+
+        claims.remove(player.getUniqueId());
+        final PlayerSidebar sidebar = sidebars.get(player.getUniqueId());
+        if (sidebar != null) {
+
+            sidebar.tick();
+
+        }
+
+        return true;
+
+    }
+
+    public void releaseAllSidebars(String owner) {
+
+        for (Player online : Bukkit.getOnlinePlayers()) {
+
+            releaseSidebar(online, owner);
+
+        }
+
+        claims.values().removeIf(claim -> claim.owner().equals(owner));
+
+    }
+
+    public String getSidebarOwner(Player player) {
+
+        final SidebarClaim claim = claims.get(player.getUniqueId());
+        return claim == null ? null : claim.owner();
+
+    }
+
+    public void forgetClaims(Player player) {
+
+        claims.remove(player.getUniqueId());
 
     }
 
@@ -355,6 +429,7 @@ public class ScoreboardOG extends JavaPlugin {
 
         private final Player player;
         private final Sidebar sidebar;
+        private int renderedLines = 0;
 
         private PlayerSidebar(Player player) {
 
@@ -366,7 +441,16 @@ public class ScoreboardOG extends JavaPlugin {
 
         private void tick() {
 
+            final SidebarClaim claim = claims.get(player.getUniqueId());
+            if (claim != null) {
+
+                tickClaim(claim);
+                return;
+
+            }
+
             sidebar.title(SIDEBAR_TITLE);
+            shrinkTo(NETWORK_LINE_COUNT);
 
             setLine(0, EMPTY_LINE);
             setLine(1, createRankLine(player));
@@ -382,6 +466,54 @@ public class ScoreboardOG extends JavaPlugin {
             setLine(11, createDeathsLine(player));
             setLine(12, EMPTY_LINE);
             setLine(13, FOOTER_LINE);
+            renderedLines = NETWORK_LINE_COUNT;
+
+        }
+
+        // A provider that throws loses its claim, so one bad plugin cannot blank the
+        // board every ten ticks.
+        private void tickClaim(SidebarClaim claim) {
+
+            final Component title;
+            final java.util.List<Component> lines;
+            try {
+
+                title = claim.provider().title(player);
+                lines = claim.provider().lines(player);
+
+            } catch (Throwable error) {
+
+                getLogger().warning("Sidebar provider from " + claim.owner() + " failed for " + player.getName()
+                        + ", handing the sidebar back: " + error.getMessage());
+                claims.remove(player.getUniqueId());
+                return;
+
+            }
+
+            sidebar.title(title == null ? Component.empty() : title);
+
+            final int count = lines == null ? 0 : Math.min(lines.size(), sidebar.maxLines());
+            shrinkTo(count);
+            for (int index = 0; index < count; index++) {
+
+                final Component line = lines.get(index);
+                setLine(index, line == null ? EMPTY_LINE : line);
+
+            }
+
+            renderedLines = count;
+
+        }
+
+        // The library keeps lines until they are cleared, so a shorter board has to
+        // drop the surplus before it is redrawn.
+        private void shrinkTo(int count) {
+
+            if (count < renderedLines) {
+
+                sidebar.clearLines();
+
+            }
 
         }
 

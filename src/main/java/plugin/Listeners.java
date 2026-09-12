@@ -25,6 +25,7 @@ public class Listeners implements Listener {
     public void onPlayerQuit(PlayerQuitEvent event) {
 
         ScoreboardOG.getInstance().closeBoard(event.getPlayer());
+        ScoreboardOG.getInstance().forgetClaims(event.getPlayer());
 
     }
 
