@@ -34,4 +34,4 @@ ScoreboardOGAPI.releaseAll("MyGame-OG");
 
 TheHerobrine-OG, BuildBattle-OG and Splegg-OG use this API and fall back to their own scoreboards when Scoreboard-OG is absent.
 
-Scoreboard-OG is public domain software released under the terms of [The Unlicense](https://github.com/true-og/Template-OG/blob/main/LICENSE).
+Scoreboard-OG is public domain software released under the terms of [The Unlicense](https://git.trueog.net/trueog/Template-OG/src/branch/main/LICENSE).
