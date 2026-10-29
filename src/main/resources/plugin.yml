@@ -1,7 +1,7 @@
 name: Scoreboard-OG
 author: NotAlexNoyle
 description: A simple Scoreboard plugin with MiniPlaceholder API support.
-website: https://github.com/true-og/Scoreboard-OG/
+website: https://git.trueog.net/trueog/Scoreboard-OG/
 version: '${version}'
 api-version: '${apiVersion}'
 main: plugin.ScoreboardOG
